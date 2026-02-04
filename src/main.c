@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum Command { SHELL_UNKNOWN, SHELL_ECHO, SHELL_EXIT };
+enum Command { SHELL_UNKNOWN, SHELL_ECHO, SHELL_EXIT, SHELL_TYPE };
 enum Command parse_command(const char *command);
 int main(int argc, char *argv[]) {
   while (1) {
@@ -27,6 +27,13 @@ int main(int argc, char *argv[]) {
     case SHELL_ECHO:
       printf("%s\n", command + 5);
       break;
+    case SHELL_TYPE:
+      if (parse_command(command + 5) == SHELL_UNKNOWN) {
+        printf("%s: not found\n", command + 5);
+      } else {
+        printf("%s is a shell builtin\n", command + 5);
+      }
+      break;
     case SHELL_UNKNOWN:
       printf("%s: command not found\n", command);
       break;
@@ -40,5 +47,7 @@ enum Command parse_command(const char *command) {
     return SHELL_EXIT;
   if (strncmp(command, "echo", 4) == 0)
     return SHELL_ECHO;
+  if (strncmp(command, "type", 4) == 0)
+    return SHELL_TYPE;
   return SHELL_UNKNOWN;
 }
