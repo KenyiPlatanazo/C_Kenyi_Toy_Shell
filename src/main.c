@@ -15,6 +15,10 @@ int main(int argc, char *argv[]) {
     // Deletes the \n char present in fgets (since the input is recieved when
     // the user presses \n, it needs to be deleted)
     command[strcspn(command, "\n")] = '\0';
+    // Checks the if the command "exit" was entered and terminates the program
+    if (!strcmp(command, "exit")) {
+      exit(0);
+    }
     printf("%s: command not found\n", command);
   }
   return 0;
