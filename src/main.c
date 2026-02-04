@@ -2,12 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+enum Command { SHELL_UNKNOWN, SHELL_ECHO, SHELL_EXIT };
+enum Command parse_command(const char *command);
 int main(int argc, char *argv[]) {
   while (1) {
     // Flush after every printf
     setbuf(stdout, NULL);
-
-    // TODO: Uncomment the code below to pass the first stage
     printf("$ ");
 
     char command[1024];
@@ -19,7 +19,26 @@ int main(int argc, char *argv[]) {
     if (!strcmp(command, "exit")) {
       exit(0);
     }
-    printf("%s: command not found\n", command);
+
+    switch (parse_command(command)) {
+    case SHELL_EXIT:
+      exit(0);
+      break;
+    case SHELL_ECHO:
+      printf("%s\n", command + 5);
+      break;
+    case SHELL_UNKNOWN:
+      printf("%s: command not found\n", command);
+      break;
+    }
   }
   return 0;
+}
+
+enum Command parse_command(const char *command) {
+  if (strcmp(command, "exit") == 0)
+    return SHELL_EXIT;
+  if (strncmp(command, "echo", 4) == 0)
+    return SHELL_ECHO;
+  return SHELL_UNKNOWN;
 }
