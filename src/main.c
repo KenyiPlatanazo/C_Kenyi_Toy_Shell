@@ -10,6 +10,8 @@ enum Command { SHELL_UNKNOWN, SHELL_ECHO, SHELL_EXIT, SHELL_TYPE };
 enum Command parse_command(const char *command);
 bool exists_in_dir(const char *command, const char *dir);
 void check_type(const char *command);
+void process_type(const char *command);
+
 int main(int argc, char *argv[]) {
   while (1) {
     // Flush after every printf
@@ -29,7 +31,7 @@ int main(int argc, char *argv[]) {
       printf("%s\n", command + 5);
       break;
     case SHELL_TYPE:
-      check_type(command);
+      process_type(command);
       break;
     case SHELL_UNKNOWN:
       printf("%s: command not found\n", command);
@@ -50,9 +52,8 @@ enum Command parse_command(const char *command) {
 }
 
 void check_type(const char *command) {
-  const char *cmd_name = command + 5;
-  if (parse_command(cmd_name) != SHELL_UNKNOWN) {
-    printf("%s is a shell builtin\n", command + 5);
+  if (parse_command(command) != SHELL_UNKNOWN) {
+    printf("%s is a shell builtin\n", command);
     return;
   }
   char *path = getenv("PATH");
@@ -60,20 +61,38 @@ void check_type(const char *command) {
   char *path_copy = strdup(path);
   char *dir = strtok(path_copy, ":");
   while (dir != NULL) {
-    if (exists_in_dir(cmd_name, dir)) {
+    if (exists_in_dir(command, dir)) {
       char fullpath[1024];
-      snprintf(fullpath, sizeof(fullpath), "%s/%s", dir, cmd_name);
-      printf("%s is %s\n", cmd_name, fullpath);
+      snprintf(fullpath, sizeof(fullpath), "%s/%s", dir, command);
+      printf("%s is %s\n", command, fullpath);
       free(path_copy);
       return;
     }
     dir = strtok(NULL, ":");
   }
   free(path_copy);
-  printf("%s: not found\n", cmd_name);
+  printf("%s: not found\n", command);
 }
 bool exists_in_dir(const char *command, const char *dir) {
   char fullpath[1024];
   snprintf(fullpath, sizeof(fullpath), "%s/%s", dir, command);
   return access(fullpath, X_OK) == 0;
+}
+
+void process_type(const char *command) {
+  char *cmd_name = strdup(command + 5);
+  char *inner_saveptr = NULL;
+  char *token;
+  if (!cmd_name)
+    return;
+  if (*cmd_name == '\0') {
+    free(cmd_name);
+    return;
+  }
+  token = strtok_r(cmd_name, " ", &inner_saveptr);
+  while (token != NULL) {
+    check_type(token);
+    token = strtok_r(NULL, " ", &inner_saveptr);
+  }
+  free(cmd_name);
 }
