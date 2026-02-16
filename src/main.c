@@ -8,7 +8,7 @@
 
 enum Command { SHELL_UNKNOWN, SHELL_ECHO, SHELL_EXIT, SHELL_TYPE };
 enum Command parse_command(const char *command);
-bool exists_in_dir(const char *command, const char *dir);
+bool does_exec_exists(const char *command, const char *dir);
 void check_type(const char *command);
 void process_type(const char *command);
 
@@ -52,31 +52,37 @@ enum Command parse_command(const char *command) {
 }
 
 void check_type(const char *command) {
+  char *inner_saveptr = NULL;
   if (parse_command(command) != SHELL_UNKNOWN) {
     printf("%s is a shell builtin\n", command);
     return;
   }
   char *path = getenv("PATH");
-  assert(path != NULL);
+  if (path == NULL) {
+    return;
+  }
   char *path_copy = strdup(path);
-  char *dir = strtok(path_copy, ":");
+  char *dir = strtok_r(path_copy, ":", &inner_saveptr);
   while (dir != NULL) {
-    if (exists_in_dir(command, dir)) {
-      char fullpath[1024];
-      snprintf(fullpath, sizeof(fullpath), "%s/%s", dir, command);
-      printf("%s is %s\n", command, fullpath);
+    if (does_exec_exists(command, dir)) {
       free(path_copy);
       return;
     }
-    dir = strtok(NULL, ":");
+    dir = strtok_r(NULL, ":", &inner_saveptr);
   }
   free(path_copy);
   printf("%s: not found\n", command);
 }
-bool exists_in_dir(const char *command, const char *dir) {
+
+bool does_exec_exists(const char *command, const char *dir) {
+  bool result = false;
   char fullpath[1024];
   snprintf(fullpath, sizeof(fullpath), "%s/%s", dir, command);
-  return access(fullpath, X_OK) == 0;
+  if (access(fullpath, X_OK) == 0) {
+    printf("%s is %s\n", command, fullpath);
+    result = true;
+  }
+  return result;
 }
 
 void process_type(const char *command) {
