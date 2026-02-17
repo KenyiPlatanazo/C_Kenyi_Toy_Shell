@@ -1,9 +1,13 @@
+#include <asm-generic/errno-base.h>
 #include <assert.h>
 #include <dirent.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #define WHITESPACE ' '
 enum Command {
@@ -11,7 +15,6 @@ enum Command {
   SHELL_ECHO,
   SHELL_EXIT,
   SHELL_TYPE,
-  SHELL_EXEC_FILE
 };
 void process_command(char *command);
 void dispatch(int argc, char *argv[]);
@@ -21,6 +24,9 @@ void check_type(const char *command);
 void process_type(const char *command);
 void exec_file(const char *dir);
 int tokenize(char *line, char *argv[]);
+void handle_type(int argc, char *argv[]);
+void handle_echo(int argc, char *argv[]);
+void handle_exec(int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
   while (1) {
@@ -38,8 +44,6 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 enum Command parse_command(const char *command) {
-  if (strncmp(command, "./", 2) == 0)
-    return SHELL_EXEC_FILE;
   if (strcmp(command, "exit") == 0)
     return SHELL_EXIT;
   if (strcmp(command, "echo") == 0)
@@ -47,58 +51,6 @@ enum Command parse_command(const char *command) {
   if (strcmp(command, "type") == 0)
     return SHELL_TYPE;
   return SHELL_UNKNOWN;
-}
-
-void check_type(const char *command) {
-  char *inner_saveptr = NULL;
-  if (parse_command(command) != SHELL_UNKNOWN) {
-    printf("%s is a shell builtin\n", command);
-    return;
-  }
-  char *path = getenv("PATH");
-  if (path == NULL) {
-    return;
-  }
-  char *path_copy = strdup(path);
-  char *dir = strtok_r(path_copy, ":", &inner_saveptr);
-  while (dir != NULL) {
-    if (does_exec_exists(command, dir)) {
-      free(path_copy);
-      return;
-    }
-    dir = strtok_r(NULL, ":", &inner_saveptr);
-  }
-  free(path_copy);
-  printf("%s: not found\n", command);
-}
-
-bool does_exec_exists(const char *command, const char *dir) {
-  bool result = false;
-  char fullpath[1024];
-  snprintf(fullpath, sizeof(fullpath), "%s/%s", dir, command);
-  if (access(fullpath, X_OK) == 0) {
-    printf("%s is %s\n", command, fullpath);
-    result = true;
-  }
-  return result;
-}
-
-void handle_type(int argc, char *argv[]) {
-  if (argc < 2)
-    return;
-  for (int i = 1; i < argc; i++) {
-    check_type(argv[i]);
-  }
-}
-
-void handle_echo(int argc, char *argv[]) {
-  for (int i = 1; i < argc; i++) {
-    printf("%s", argv[i]);
-    if (i < argc - 1) {
-      printf(" ");
-    }
-  }
-  printf("\n");
 }
 
 void process_type(const char *command) {
@@ -151,10 +103,76 @@ void dispatch(int argc, char *argv[]) {
   case SHELL_TYPE:
     handle_type(argc, argv);
     break;
-  case SHELL_EXEC_FILE:
-    break;
   case SHELL_UNKNOWN:
-    printf("%s: command not found\n", argv[0]);
+    handle_exec(argc, argv);
     break;
+  }
+}
+
+void handle_type(int argc, char *argv[]) {
+  if (argc < 2)
+    return;
+  for (int i = 1; i < argc; i++) {
+    check_type(argv[i]);
+  }
+}
+void check_type(const char *command) {
+  char *inner_saveptr = NULL;
+  if (parse_command(command) != SHELL_UNKNOWN) {
+    printf("%s is a shell builtin\n", command);
+    return;
+  }
+  char *path = getenv("PATH");
+  if (path == NULL) {
+    return;
+  }
+  char *path_copy = strdup(path);
+  char *dir = strtok_r(path_copy, ":", &inner_saveptr);
+  while (dir != NULL) {
+    if (does_exec_exists(command, dir)) {
+      printf("%s is %s/%s\n", command, dir, command);
+      free(path_copy);
+      return;
+    }
+    dir = strtok_r(NULL, ":", &inner_saveptr);
+  }
+  free(path_copy);
+  printf("%s: not found\n", command);
+}
+
+bool does_exec_exists(const char *file, const char *dir) {
+  char fullpath[1024];
+  snprintf(fullpath, sizeof(fullpath), "%s/%s", dir, file);
+  return access(fullpath, X_OK) == 0;
+}
+
+void handle_echo(int argc, char *argv[]) {
+  for (int i = 1; i < argc; i++) {
+    printf("%s", argv[i]);
+    if (i < argc - 1) {
+      printf(" ");
+    }
+  }
+  printf("\n");
+}
+
+void handle_exec(int argc, char *argv[]) {
+  pid_t pid = fork();
+  if (pid < 0) {
+    perror("fork");
+    return;
+  }
+  if (pid == 0) {
+    execvp(argv[0], argv);
+    if (errno == ENOENT) {
+      fprintf(stderr, "%s: command not found\n", argv[0]);
+      exit(127);
+    } else {
+      perror("execvp");
+      exit(126);
+    }
+  } else {
+    int status;
+    waitpid(pid, &status, 0);
   }
 }
