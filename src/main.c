@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <linux/limits.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,7 @@ enum Command {
   SHELL_EXIT,
   SHELL_TYPE,
   SHELL_PWD,
+  SHELL_CD,
 };
 void process_command(char *command);
 void dispatch(int argc, char *argv[]);
@@ -29,6 +31,7 @@ void handle_type(int argc, char *argv[]);
 void handle_echo(int argc, char *argv[]);
 void handle_exec(int argc, char *argv[]);
 void handle_pwd(int argc, char *argv[]);
+void handle_cd(int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
   while (1) {
@@ -54,6 +57,8 @@ enum Command parse_command(const char *command) {
     return SHELL_TYPE;
   if (strcmp(command, "pwd") == 0)
     return SHELL_PWD;
+  if (strcmp(command, "cd") == 0)
+    return SHELL_CD;
   return SHELL_UNKNOWN;
 }
 
@@ -109,6 +114,9 @@ void dispatch(int argc, char *argv[]) {
     break;
   case SHELL_PWD:
     handle_pwd(argc, argv);
+    break;
+  case SHELL_CD:
+    handle_cd(argc, argv);
     break;
   case SHELL_UNKNOWN:
     handle_exec(argc, argv);
@@ -192,5 +200,22 @@ void handle_pwd(int argc, char *argv[]) {
     return;
   } else {
     perror("getcwd() error");
+  }
+}
+void handle_cd(int argc, char *argv[]) {
+  if (argc < 2) {
+    chdir("~");
+    printf("chdir to /home");
+    return;
+  }
+  // We haven't implemented flags yet, that's why we'll keep this error here for
+  // the mean time.
+  if (argc > 2) {
+    printf("bash: cd: too many arguments\n");
+    return;
+  }
+  if (chdir(argv[1]) != 0) {
+    fprintf(stderr, "cd: %s: No such file or directory\n", argv[1]);
+    // perror("chdir() failed: ");
   }
 }
