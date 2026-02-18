@@ -3,6 +3,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <linux/limits.h>
+#include <pwd.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -203,9 +204,12 @@ void handle_pwd(int argc, char *argv[]) {
   }
 }
 void handle_cd(int argc, char *argv[]) {
+  char *usr_home = getenv("HOME");
+  if (usr_home == NULL) {
+    return;
+  }
   if (argc < 2) {
-    chdir("~");
-    printf("chdir to /home");
+    chdir(usr_home);
     return;
   }
   // We haven't implemented flags yet, that's why we'll keep this error here for
@@ -214,8 +218,11 @@ void handle_cd(int argc, char *argv[]) {
     printf("bash: cd: too many arguments\n");
     return;
   }
-  if (chdir(argv[1]) != 0) {
-    fprintf(stderr, "cd: %s: No such file or directory\n", argv[1]);
-    // perror("chdir() failed: ");
+  if (strcmp(argv[1], "~") == 0) {
+    chdir(usr_home);
+    return;
   }
+  if (chdir(argv[1]) != 0)
+    fprintf(stderr, "cd: %s: No such file or directory\n", argv[1]);
+  // perror("chdir() failed: ");
 }
