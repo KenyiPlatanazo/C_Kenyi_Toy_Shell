@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <dirent.h>
 #include <errno.h>
+#include <linux/limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,12 +10,12 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#define WHITESPACE ' '
 enum Command {
   SHELL_UNKNOWN,
   SHELL_ECHO,
   SHELL_EXIT,
   SHELL_TYPE,
+  SHELL_PWD,
 };
 void process_command(char *command);
 void dispatch(int argc, char *argv[]);
@@ -27,6 +28,7 @@ int tokenize(char *line, char *argv[]);
 void handle_type(int argc, char *argv[]);
 void handle_echo(int argc, char *argv[]);
 void handle_exec(int argc, char *argv[]);
+void handle_pwd(int argc, char *argv[]);
 
 int main(int argc, char *argv[]) {
   while (1) {
@@ -50,6 +52,8 @@ enum Command parse_command(const char *command) {
     return SHELL_ECHO;
   if (strcmp(command, "type") == 0)
     return SHELL_TYPE;
+  if (strcmp(command, "pwd") == 0)
+    return SHELL_PWD;
   return SHELL_UNKNOWN;
 }
 
@@ -102,6 +106,9 @@ void dispatch(int argc, char *argv[]) {
     break;
   case SHELL_TYPE:
     handle_type(argc, argv);
+    break;
+  case SHELL_PWD:
+    handle_pwd(argc, argv);
     break;
   case SHELL_UNKNOWN:
     handle_exec(argc, argv);
@@ -174,5 +181,16 @@ void handle_exec(int argc, char *argv[]) {
   } else {
     int status;
     waitpid(pid, &status, 0);
+  }
+}
+
+void handle_pwd(int argc, char *argv[]) {
+  // We keep the argc and argv to add flag detection later
+  char cwd[PATH_MAX];
+  if (getcwd(cwd, sizeof(cwd)) != NULL) {
+    printf("%s\n", cwd);
+    return;
+  } else {
+    perror("getcwd() error");
   }
 }
