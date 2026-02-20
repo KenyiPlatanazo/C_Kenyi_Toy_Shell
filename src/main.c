@@ -24,11 +24,13 @@ void process_command(char *command);
 void dispatch(int argc, char *argv[]);
 enum Command parse_command(const char *command);
 bool does_exec_exists(const char *command, const char *dir);
-void check_type(const char *command);
-void process_type(const char *command);
-void exec_file(const char *dir);
+
 int tokenize(char *line, char *argv[]);
+void handle_str_quotes(char *token);
+void delete_char(char *token, char ch);
+
 void handle_type(int argc, char *argv[]);
+void check_type(const char *command);
 void handle_echo(int argc, char *argv[]);
 void handle_exec(int argc, char *argv[]);
 void handle_pwd(int argc, char *argv[]);
@@ -49,37 +51,6 @@ int main(int argc, char *argv[]) {
   }
   return 0;
 }
-enum Command parse_command(const char *command) {
-  if (strcmp(command, "exit") == 0)
-    return SHELL_EXIT;
-  if (strcmp(command, "echo") == 0)
-    return SHELL_ECHO;
-  if (strcmp(command, "type") == 0)
-    return SHELL_TYPE;
-  if (strcmp(command, "pwd") == 0)
-    return SHELL_PWD;
-  if (strcmp(command, "cd") == 0)
-    return SHELL_CD;
-  return SHELL_UNKNOWN;
-}
-
-void process_type(const char *command) {
-  char *cmd_name = strdup(command + 5);
-  char *inner_saveptr = NULL;
-  char *token;
-  if (!cmd_name)
-    return;
-  if (*cmd_name == '\0') {
-    free(cmd_name);
-    return;
-  }
-  token = strtok_r(cmd_name, " ", &inner_saveptr);
-  while (token != NULL) {
-    check_type(token);
-    token = strtok_r(NULL, " ", &inner_saveptr);
-  }
-  free(cmd_name);
-}
 
 void process_command(char *command) {
   char *argv[1024];
@@ -96,9 +67,31 @@ int tokenize(char *line, char *argv[]) {
   while (token != NULL) {
     argv[argc++] = token;
     token = strtok_r(NULL, " ", &save_ptr);
+    if (token != NULL) {
+      handle_str_quotes(token);
+    }
   }
   argv[argc] = NULL;
   return argc;
+}
+
+void handle_str_quotes(char *token) {
+  int token_length = strlen(token);
+  if (token[0] != '\'' && token[token_length - 1] != '\'') {
+    return;
+  }
+  delete_char(token, '\'');
+}
+
+void delete_char(char *token, char ch) {
+  int i, j;
+  int len = strlen(token);
+  for (i = j = 0; i < len; i++) {
+    if (token[i] != ch) {
+      token[j++] = token[i];
+    }
+  }
+  token[j] = '\0';
 }
 
 void dispatch(int argc, char *argv[]) {
@@ -123,6 +116,19 @@ void dispatch(int argc, char *argv[]) {
     handle_exec(argc, argv);
     break;
   }
+}
+enum Command parse_command(const char *command) {
+  if (strcmp(command, "exit") == 0)
+    return SHELL_EXIT;
+  if (strcmp(command, "echo") == 0)
+    return SHELL_ECHO;
+  if (strcmp(command, "type") == 0)
+    return SHELL_TYPE;
+  if (strcmp(command, "pwd") == 0)
+    return SHELL_PWD;
+  if (strcmp(command, "cd") == 0)
+    return SHELL_CD;
+  return SHELL_UNKNOWN;
 }
 
 void handle_type(int argc, char *argv[]) {
