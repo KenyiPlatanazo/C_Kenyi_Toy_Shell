@@ -12,6 +12,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#define TOKEN_BUFFSIZE 64
+#define MAX_TOKENS 1024
+// #define TOKEN_DELIM "\t\r\n\a"
+
 enum Command {
   SHELL_UNKNOWN,
   SHELL_ECHO,
@@ -20,14 +24,15 @@ enum Command {
   SHELL_PWD,
   SHELL_CD,
 };
+
+enum Lexical_State { NORMAL, IN_SINGLE_QUOTE, IN_DOUBLE_QUOTE };
+
 void process_command(char *command);
 void dispatch(int argc, char *argv[]);
 enum Command parse_command(const char *command);
 bool does_exec_exists(const char *command, const char *dir);
 
 int tokenize(char *line, char *argv[]);
-void handle_str_quotes(char *token);
-void delete_char(char *token, char ch);
 
 void handle_type(int argc, char *argv[]);
 void check_type(const char *command);
@@ -35,6 +40,8 @@ void handle_echo(int argc, char *argv[]);
 void handle_exec(int argc, char *argv[]);
 void handle_pwd(int argc, char *argv[]);
 void handle_cd(int argc, char *argv[]);
+
+unsigned scan_and_match(char *string, const char *pattern, unsigned flags);
 
 int main(int argc, char *argv[]) {
   while (1) {
@@ -62,36 +69,62 @@ void process_command(char *command) {
 
 int tokenize(char *line, char *argv[]) {
   int argc = 0;
-  char *save_ptr = NULL;
-  char *token = strtok_r(line, " ", &save_ptr);
-  while (token != NULL) {
-    argv[argc++] = token;
-    token = strtok_r(NULL, " ", &save_ptr);
-    if (token != NULL) {
-      handle_str_quotes(token);
+  int i = 0;
+  while (line[i] != '\0') {
+    // Deleting dead space
+    while (line[i] == ' ')
+      i++;
+    if (line[i] == '\0')
+      break;
+
+    char token_buffer[TOKEN_BUFFSIZE];
+    int t = 0;
+    enum Lexical_State state = NORMAL;
+    bool done = false;
+    while (line[i] != '\0' && !done) {
+      char current_char = line[i];
+      switch (state) {
+      case NORMAL:
+        if (current_char == ' ') {
+          done = true;
+        } else if (current_char == '\'') {
+          state = IN_SINGLE_QUOTE;
+        } else if (current_char == '"') {
+          state = IN_DOUBLE_QUOTE;
+        } else {
+          token_buffer[t++] = current_char;
+        }
+        break;
+      case IN_SINGLE_QUOTE:
+        if (current_char == '\'') {
+          state = NORMAL;
+        } else {
+          token_buffer[t++] = current_char;
+        }
+        break;
+      case IN_DOUBLE_QUOTE:
+        if (current_char == '"') {
+          state = NORMAL;
+        } else {
+          token_buffer[t++] = current_char;
+        }
+        break;
+      }
+      if (!done)
+        i++;
     }
+    token_buffer[t] = '\0';
+    argv[argc] = strdup(token_buffer);
+    if (!argv[argc]) {
+      perror("strdup");
+      exit(EXIT_FAILURE);
+    }
+    argc++;
+    if (argc >= MAX_TOKENS - 1)
+      break;
   }
   argv[argc] = NULL;
   return argc;
-}
-
-void handle_str_quotes(char *token) {
-  int token_length = strlen(token);
-  if (token[0] != '\'' && token[token_length - 1] != '\'') {
-    return;
-  }
-  delete_char(token, '\'');
-}
-
-void delete_char(char *token, char ch) {
-  int i, j;
-  int len = strlen(token);
-  for (i = j = 0; i < len; i++) {
-    if (token[i] != ch) {
-      token[j++] = token[i];
-    }
-  }
-  token[j] = '\0';
 }
 
 void dispatch(int argc, char *argv[]) {
