@@ -25,7 +25,7 @@ enum Command {
   SHELL_CD,
 };
 
-enum Lexical_State { NORMAL, IN_SINGLE_QUOTE, IN_DOUBLE_QUOTE, IN_BACKSLASH };
+enum Lexical_State { NORMAL, IN_SINGLE_QUOTE, IN_DOUBLE_QUOTE };
 
 void process_command(char *command);
 void dispatch(int argc, char *argv[]);
@@ -96,7 +96,9 @@ int tokenize(char *line, char *argv[]) {
           state = IN_DOUBLE_QUOTE;
           break;
         case '\\':
-          state = IN_BACKSLASH;
+          i++;
+          if (line[i] != '\0')
+            token_buffer[t++] = line[i];
           break;
         default:
           token_buffer[t++] = current_char;
@@ -113,13 +115,17 @@ int tokenize(char *line, char *argv[]) {
       case IN_DOUBLE_QUOTE:
         if (current_char == '"') {
           state = NORMAL;
+        } else if (current_char == '\\') {
+          char next = line[i + 1];
+          if (next == '"' || next == '\\' || next == '$' || next == '`') {
+            i++;
+            token_buffer[t++] = next;
+          } else {
+            token_buffer[t++] = current_char;
+          }
         } else {
           token_buffer[t++] = current_char;
         }
-        break;
-      case IN_BACKSLASH:
-        state = NORMAL;
-        token_buffer[t++] = current_char;
         break;
       }
       if (!done)
