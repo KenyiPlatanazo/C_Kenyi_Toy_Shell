@@ -361,6 +361,7 @@ bool validate_syntax(int argc, struct raw_token *tokens[]) {
 void analyze_commands(struct t_pipeline *pipeline, int argc,
                       struct raw_token *tokens[]) {
   int current = 0;
+  pipeline->commands->redir_capacity = 0;
 
   for (int i = 0; i < argc; i++) {
     switch (tokens[i]->type) {
@@ -417,7 +418,7 @@ void init_pipeline(struct t_pipeline *pipeline, int argc,
     if (pipeline->commands[i].redir_count > 0) {
       pipeline->commands[i].redirs =
           calloc(pipeline->commands[i].redir_count, sizeof(struct t_redir));
-      pipeline->commands[i].redir_capacity = 0;
+      pipeline->commands[i].redir_count = 0;
       if (!pipeline->commands[i].redirs) {
         perror("Calloc redirs");
         exit(EXIT_FAILURE);
