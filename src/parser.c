@@ -417,13 +417,13 @@ void init_pipeline(struct t_pipeline *pipeline, int argc,
 
     if (pipeline->commands[i].redir_count > 0) {
       pipeline->commands[i].redirs =
-          calloc(pipeline->commands[i].redir_count, sizeof(struct t_redir));
-      pipeline->commands[i].redir_count = 0;
+          calloc(pipeline->commands[i].redir_capacity, sizeof(struct t_redir));
       if (!pipeline->commands[i].redirs) {
         perror("Calloc redirs");
         exit(EXIT_FAILURE);
       }
     }
+    pipeline->commands[i].redir_count = 0;
   }
 }
 
