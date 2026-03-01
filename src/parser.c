@@ -269,6 +269,7 @@ void parse_tokens(struct t_pipeline *pipeline, int argc,
   int current_cmd = 0;
   int arg_index = 0;
   int redir_index = 0;
+  int redir_fd = STDOUT_FILENO;
 
   for (int i = 0; i < argc; i++) {
     switch (argv[i]->type) {
@@ -300,12 +301,14 @@ void parse_tokens(struct t_pipeline *pipeline, int argc,
       redir_index = 0;
       break;
     }
-    case TOKEN_REDIR_APPEND:
     case TOKEN_REDIR_IN:
+      redir_fd = STDIN_FILENO;
+      [[fallthrough]];
+    case TOKEN_REDIR_APPEND:
     case TOKEN_REDIR_OUT: {
       struct raw_token *next = argv[i + 1];
       process_redir(&pipeline->commands[current_cmd].redirs[redir_index++],
-                    argv[i], next->value, DEFAULT_FD);
+                    argv[i], next->value, redir_fd);
       pipeline->commands[current_cmd].redir_count++;
       // We skip over the filename as to not take as an argv for the command
       i++;
@@ -361,7 +364,6 @@ bool validate_syntax(int argc, struct raw_token *tokens[]) {
 void analyze_commands(struct t_pipeline *pipeline, int argc,
                       struct raw_token *tokens[]) {
   int current = 0;
-  pipeline->commands->redir_capacity = 0;
 
   for (int i = 0; i < argc; i++) {
     switch (tokens[i]->type) {
@@ -415,7 +417,7 @@ void init_pipeline(struct t_pipeline *pipeline, int argc,
       exit(EXIT_FAILURE);
     }
 
-    if (pipeline->commands[i].redir_count > 0) {
+    if (pipeline->commands[i].redir_capacity > 0) {
       pipeline->commands[i].redirs =
           calloc(pipeline->commands[i].redir_capacity, sizeof(struct t_redir));
       if (!pipeline->commands[i].redirs) {

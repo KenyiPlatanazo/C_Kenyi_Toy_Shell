@@ -82,7 +82,7 @@ bool does_exec_exists(const char *file, const char *dir) {
 }
 
 void handle_echo(struct t_command *command) {
-  for (int i = 1; i < command->argc; i++) {
+  for (int i = 1; i < command->argc && command->argv[i] != NULL; i++) {
     printf("%s", command->argv[i]);
     if (i < command->argc - 1) {
       printf(" ");
@@ -171,6 +171,10 @@ void handle_redirections(struct t_command *command) {
       perror("Open/create file");
       return;
     }
+
+    // printf("type = %d fd = %d file = %s\n", command->redirs[i].type,
+    //       command->redirs[i].fd, command->redirs[i].filename);
+
     dup2(file_fd, command->redirs[i].fd);
     close(file_fd);
   }
