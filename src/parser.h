@@ -19,6 +19,7 @@
 #define MAX_TOKENS VALUE
 #define MAX_COMMANDS VALUE
 #define MAX_ARGS VALUE
+#define DEFAULT_FD 0
 
 enum Command {
   SHELL_UNKNOWN,
@@ -48,6 +49,7 @@ struct raw_token {
 enum redir_type { REDIR_OUT, REDIR_APPEND, REDIR_IN };
 
 struct t_redir {
+  int fd;
   enum redir_type type;
   char *filename;
 };
@@ -78,8 +80,10 @@ void read_token(const char *line, int *i, char *buffer);
 
 void process_chars(struct raw_token *new_token, char *s);
 void process_redir(struct t_redir *redir_buffer, struct raw_token *token,
-                   char *filename);
+                   char *filename, int fd);
 void parse_tokens(struct t_pipeline *pipe, int argc, struct raw_token *argv[]);
+bool is_token_pure_digits(struct raw_token *token);
+bool is_token_pure_digits(struct raw_token *token);
 void init_pipeline(struct t_pipeline *pipeline, int argc,
                    struct raw_token *tokens[]);
 void analyze_commands(struct t_pipeline *pipeline, int argc,

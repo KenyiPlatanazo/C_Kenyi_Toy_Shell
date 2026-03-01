@@ -1,4 +1,5 @@
 #include "parser.h"
+#include <stdio.h>
 #include <unistd.h>
 
 void handle_type(struct t_command *command);
@@ -107,10 +108,6 @@ void read_token(const char *line, int *i, char *buffer) {
     switch (state) {
     case NORMAL: {
       switch (current_char) {
-      case '1':
-        if (line[*i + 1] != '>')
-          (*i)++;
-        break;
       case '>':
         if (buffer_index == 0) {
           append_char(buffer, &buffer_index, '>');
@@ -276,6 +273,22 @@ void parse_tokens(struct t_pipeline *pipeline, int argc,
   for (int i = 0; i < argc; i++) {
     switch (argv[i]->type) {
     case TOKEN_WORD: {
+      if (is_token_pure_digits(argv[i]) == true && i < argc) {
+        struct raw_token *next = argv[i + 1];
+        if (next &&
+            (next->type == TOKEN_REDIR_OUT || next->type == TOKEN_REDIR_IN ||
+             next->type == TOKEN_REDIR_APPEND)) {
+          if (i + 2 >= argc) {
+            fprintf(stderr, "bash: syntax error\n");
+            return;
+          }
+          struct raw_token *filename = argv[i + 2];
+          process_redir(&pipeline->commands[current_cmd].redirs[redir_index++],
+                        next, filename->value, atoi(argv[i]->value));
+          i += 2;
+          break;
+        }
+      }
       pipeline->commands[current_cmd].argv[arg_index++] = argv[i]->value;
       break;
     }
@@ -291,7 +304,7 @@ void parse_tokens(struct t_pipeline *pipeline, int argc,
     case TOKEN_REDIR_OUT: {
       struct raw_token *next = argv[i + 1];
       process_redir(&pipeline->commands[current_cmd].redirs[redir_index++],
-                    argv[i], next->value);
+                    argv[i], next->value, DEFAULT_FD);
       // We skip over the filename as to not take as an argv for the command
       i++;
       break;
@@ -302,6 +315,17 @@ void parse_tokens(struct t_pipeline *pipeline, int argc,
     }
   }
   pipeline->commands[current_cmd].argv[arg_index] = NULL;
+}
+
+bool is_token_pure_digits(struct raw_token *token) {
+  if (!token || !token->value || token->value[0] == '\0')
+    return false;
+  for (int i = 0; i < strlen(token->value); i++) {
+    char c = token->value[i];
+    if (c < '0' || c > '9')
+      return false;
+  }
+  return true;
 }
 
 bool validate_syntax(int argc, struct raw_token *tokens[]) {
@@ -357,7 +381,7 @@ void analyze_commands(struct t_pipeline *pipeline, int argc,
 }
 
 void process_redir(struct t_redir *redir_buffer, struct raw_token *token,
-                   char *filename) {
+                   char *filename, int fd) {
   enum redir_type type = REDIR_OUT;
   if (strcmp(token->value, ">>") == 0) {
     type = REDIR_APPEND;
@@ -367,6 +391,7 @@ void process_redir(struct t_redir *redir_buffer, struct raw_token *token,
   assert(redir_buffer != NULL);
   redir_buffer->type = type;
   redir_buffer->filename = strdup(filename);
+  redir_buffer->fd = fd;
 }
 
 void init_pipeline(struct t_pipeline *pipeline, int argc,

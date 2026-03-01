@@ -151,32 +151,27 @@ void handle_redirections(struct t_command *command) {
   if (command->redir_count == 0 || command->redirs == NULL)
     return;
   for (int i = 0; i < command->redir_count; i++) {
-    int fd = -1;
+    int file_fd = -1;
 
     switch (command->redirs[i].type) {
     case REDIR_OUT:
-      fd =
+      file_fd =
           open(command->redirs[i].filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
       break;
     case REDIR_APPEND:
-      fd = open(command->redirs[i].filename, O_WRONLY | O_CREAT | O_APPEND,
-                0644);
+      file_fd = open(command->redirs[i].filename, O_WRONLY | O_CREAT | O_APPEND,
+                     0644);
       break;
     case REDIR_IN:
-      fd = open(command->redirs[i].filename, O_RDONLY, 0644);
+      file_fd = open(command->redirs[i].filename, O_RDONLY, 0644);
       break;
     }
 
-    if (fd < 0) {
+    if (file_fd < 0) {
       perror("Open/create file");
       return;
     }
-    if (command->redirs[i].type == REDIR_IN) {
-      dup2(fd, STDIN_FILENO);
-    } else {
-      dup2(fd, STDOUT_FILENO);
-    }
-
-    close(fd);
+    dup2(file_fd, command->redirs[i].fd);
+    close(file_fd);
   }
 }
