@@ -59,6 +59,7 @@ struct t_command {
   int argc;
   struct t_redir *redirs;
   int redir_count;
+  int redir_capacity;
 };
 
 struct t_pipeline {

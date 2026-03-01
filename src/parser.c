@@ -273,7 +273,7 @@ void parse_tokens(struct t_pipeline *pipeline, int argc,
   for (int i = 0; i < argc; i++) {
     switch (argv[i]->type) {
     case TOKEN_WORD: {
-      if (is_token_pure_digits(argv[i]) == true && i < argc) {
+      if (is_token_pure_digits(argv[i]) == true && i + 1 < argc) {
         struct raw_token *next = argv[i + 1];
         if (next &&
             (next->type == TOKEN_REDIR_OUT || next->type == TOKEN_REDIR_IN ||
@@ -306,6 +306,7 @@ void parse_tokens(struct t_pipeline *pipeline, int argc,
       struct raw_token *next = argv[i + 1];
       process_redir(&pipeline->commands[current_cmd].redirs[redir_index++],
                     argv[i], next->value, DEFAULT_FD);
+      pipeline->commands[current_cmd].redir_count++;
       // We skip over the filename as to not take as an argv for the command
       i++;
       break;
@@ -369,7 +370,7 @@ void analyze_commands(struct t_pipeline *pipeline, int argc,
     case TOKEN_REDIR_IN:
     case TOKEN_REDIR_OUT:
     case TOKEN_REDIR_APPEND:
-      pipeline->commands[current].redir_count++;
+      pipeline->commands[current].redir_capacity++;
       i++;
       break;
     case TOKEN_PIPE:
@@ -416,6 +417,7 @@ void init_pipeline(struct t_pipeline *pipeline, int argc,
     if (pipeline->commands[i].redir_count > 0) {
       pipeline->commands[i].redirs =
           calloc(pipeline->commands[i].redir_count, sizeof(struct t_redir));
+      pipeline->commands[i].redir_capacity = 0;
       if (!pipeline->commands[i].redirs) {
         perror("Calloc redirs");
         exit(EXIT_FAILURE);
