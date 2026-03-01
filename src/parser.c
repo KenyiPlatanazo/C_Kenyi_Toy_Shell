@@ -285,6 +285,7 @@ void parse_tokens(struct t_pipeline *pipeline, int argc,
           struct raw_token *filename = argv[i + 2];
           process_redir(&pipeline->commands[current_cmd].redirs[redir_index++],
                         next, filename->value, atoi(argv[i]->value));
+          pipeline->commands[current_cmd].redir_count++;
           i += 2;
           break;
         }
@@ -305,6 +306,7 @@ void parse_tokens(struct t_pipeline *pipeline, int argc,
       struct raw_token *next = argv[i + 1];
       process_redir(&pipeline->commands[current_cmd].redirs[redir_index++],
                     argv[i], next->value, DEFAULT_FD);
+      pipeline->commands[current_cmd].redir_count++;
       // We skip over the filename as to not take as an argv for the command
       i++;
       break;
