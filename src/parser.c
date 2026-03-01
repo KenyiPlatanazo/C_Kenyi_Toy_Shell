@@ -107,6 +107,10 @@ void read_token(const char *line, int *i, char *buffer) {
     switch (state) {
     case NORMAL: {
       switch (current_char) {
+      case '1':
+        if (line[*i + 1] != '>')
+          break;
+        [[fallthrough]];
       case '>':
         if (buffer_index == 0) {
           append_char(buffer, &buffer_index, '>');
