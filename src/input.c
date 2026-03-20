@@ -625,8 +625,6 @@ void complt_find_matches(struct comp_token *token) {
       complt_print_matches(matches, total);
     }
   }
-  printf("\ntoken: %s\n", token->value);
-  printf("total matches: %d\n", total);
 }
 void escape_match(char *dest, const char *src, enum lexical_state state) {
   int j = 0;
@@ -731,15 +729,26 @@ int complt_find_arguments(char *matches[], const char *line, int max) {
 }
 
 void complt_replace_line(struct comp_token *token, char *match) {
+  char temp[1024];
+  strncpy(temp, match, sizeof(temp) - 2);
+  temp[sizeof(temp) - 2] = '\0';
+
+  int len = strlen(temp);
+
+  if (len > 0 && temp[len - 1] != '/') {
+    temp[len] = ' ';
+    temp[len + 1] = '\0';
+  }
+
   int old_len = token->token_end - token->token_start;
-  int new_len = strlen(match);
+  int new_len = strlen(temp);
   int diff = new_len - old_len;
   if (diff + T.size > LINE_MAX - 1)
     return;
 
   memmove(&T.line[token->token_end + diff], &T.line[token->token_end],
           T.size - token->token_end);
-  memcpy(&T.line[token->token_start], match, new_len);
+  memcpy(&T.line[token->token_start], temp, new_len);
   T.size += diff;
   T.cx = token->token_start + new_len;
   T.line[T.size] = '\0';
