@@ -126,12 +126,31 @@ void complt_print_matches(char *matches[], int total);
 int complt_find_longest_common_prefix(char *matches[], int count);
 
 int main() {
+
+  int is_interactive = isatty(STDIN_FILENO);
+  if (is_interactive) {
+    enable_raw_mode();
+    init_terminal();
+    while (!executing) {
+      terminal_refresh_screen();
+      terminal_process_keypress();
+    }
+  } else {
+    char line[1024];
+    printf("Fgets\n");
+    while (fgets(line, sizeof(line), stdin)) {
+      line[strcspn(line, "\n")] = '\0';
+      process_command(line);
+    }
+  }
+  /*
   enable_raw_mode();
   init_terminal();
-  while (1) {
+  while (!executing) {
     terminal_refresh_screen();
     terminal_process_keypress();
   }
+  */
   return 0;
 }
 
@@ -344,14 +363,16 @@ void terminal_move_cursor(int key) {
 void process_line(void) {
   if (T.size == 0)
     return;
+  disable_raw_mode();
+  executing = true;
   T.line[T.size] = '\0';
   write(STDOUT_FILENO, "\r\n", 2);
-  disable_raw_mode();
   process_command(T.line);
   history_save_entry(T.line);
   T.hist.index = T.hist.length;
   clear_line_buff();
   enable_raw_mode();
+  executing = false;
 }
 
 void terminal_search_history(int c) {
