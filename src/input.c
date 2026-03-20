@@ -1,3 +1,4 @@
+#include "parser.h"
 #include <stdbool.h>
 #define _POSIX_C_SOURCE 200809L
 
@@ -114,6 +115,8 @@ void complt_find_matches(struct comp_token *token);
 void escape_match(char *dest, const char *src, enum lexical_state state);
 int complt_find_commands(char *matches[], int total, const char *prefix,
                          const char *dir, int max);
+int complt_find_builtins(char *matches[], int total, const char *prefix,
+                         int max);
 int complt_find_arguments(char *matches[], const char *line, int max);
 bool complt_already_exists(char *matches[], int count, const char *name);
 void complt_replace_line(struct comp_token *token, char *match);
@@ -123,7 +126,7 @@ int complt_find_longest_common_prefix(char *matches[], int count);
 int main() {
   enable_raw_mode();
   init_terminal();
-  while (!executing) {
+  while (1) {
     terminal_refresh_screen();
     terminal_process_keypress();
   }
@@ -338,7 +341,6 @@ void terminal_move_cursor(int key) {
 void process_line(void) {
   if (T.size == 0)
     return;
-  executing = true;
   T.line[T.size] = '\0';
   write(STDOUT_FILENO, "\r\n", 2);
   disable_raw_mode();
@@ -346,7 +348,6 @@ void process_line(void) {
   history_save_entry(T.line);
   T.hist.index = T.hist.length;
   clear_line_buff();
-  executing = false;
   enable_raw_mode();
 }
 
@@ -434,7 +435,7 @@ void complt_clear_state(void) {
     free(CS.matches[i]);
   CS.count = 0;
   CS.index = 0;
-  CS.active = true;
+  CS.active = false;
 }
 void complt_cycle(struct comp_token *token) {
   if (CS.count == 0)
@@ -578,7 +579,7 @@ void complt_find_matches(struct comp_token *token) {
   }
 
   int total = 0;
-  char *matches[MAX_MATCHES];
+  char *matches[MAX_MATCHES] = {0};
   if (token->type == COMP_FILE) {
     total += complt_find_arguments(matches, token->value, MAX_MATCHES);
     total += complt_find_commands(matches, total, token->value, ".",
@@ -586,6 +587,8 @@ void complt_find_matches(struct comp_token *token) {
     if (total == 0)
       return;
   } else {
+    total +=
+        complt_find_builtins(matches, total, token->value, MAX_MATCHES - total);
     char *path = getenv("PATH");
     if (path == NULL) {
       return;
@@ -595,13 +598,23 @@ void complt_find_matches(struct comp_token *token) {
 
     char *dir = strtok_r(path_copy, ":", &inner_saveptr);
     while (dir && total < MAX_MATCHES) {
+      // REAL IMPLEMENTATION
+      total += complt_find_commands(matches, total, token->value, dir,
+                                    MAX_MATCHES - total);
+
+      // The following 'added' variable and if statement are part of the HACK to
+      // pass the first test THIS IS PART OF THE HACK
+      /*
       int added = complt_find_commands(matches, total, token->value, dir,
                                        MAX_MATCHES - total);
+
       total += added;
       if (total == 1 &&
           strncmp("exit", token->value, strlen(token->value)) == 0) {
         break;
       }
+      */
+      // END HACK
       dir = strtok_r(NULL, ":", &inner_saveptr);
     }
     if (total == 0) {
@@ -630,7 +643,7 @@ void complt_find_matches(struct comp_token *token) {
       strncpy(temp, matches[0], lcp_len);
       temp[lcp_len] = '\0';
       char escaped[1024];
-      escape_match(escaped, matches[0], token->quote_state);
+      escape_match(escaped, temp, token->quote_state);
       complt_replace_line(token, escaped);
     } else {
       complt_print_matches(matches, total);
@@ -665,13 +678,18 @@ bool complt_already_exists(char *matches[], int count, const char *name) {
 int complt_find_commands(char *matches[], int total, const char *prefix,
                          const char *dir, int max) {
 
-  // THIS FUNCTION ONLY EXISTS TO PASS THE TEST OF CODECRAFTERS
+  // THIS IF STATEMENT ONLY EXISTS TO PASS THE CODECRAFTERS TEST
   // I WENT AHEAD OF MYSELF AND IMPLEMENTED THE ENTIRE LOGIC BEFORE TIME
-  // THIS FUNCTION IS A HACK!!!!!!!!!!!!!!!!
+  // SO WHEN "EXI" IS AN INPUT INSTEAD OF AUTOCOMPLETING TO EXIT
+  // IT INSTEAD PRINTS ALL THE MATCHES
+  // THIS IF STATEMENT IS A HACK!!!!!!!!!!!!!!!!
+  /*
   if (strncmp("exit", prefix, strlen(prefix)) == 0) {
     matches[0] = strdup("exit");
     return 1;
   }
+  */
+  // END HACK
 
   DIR *d = opendir(dir);
   if (!d)
@@ -702,6 +720,21 @@ int complt_find_commands(char *matches[], int total, const char *prefix,
   return count;
 }
 
+int complt_find_builtins(char *matches[], int total, const char *prefix,
+                         int max) {
+  const char *builtins[] = {"exit", "echo", "type", "pwd", "cd", NULL};
+  int count = 0;
+  int prefix_len = strlen(prefix);
+  for (int i = 0; builtins[i] && count < max; ++i) {
+    if (strncmp(builtins[i], prefix, prefix_len) == 0) {
+      if (!complt_already_exists(matches, count, builtins[i])) {
+        matches[total + count] = strdup(builtins[i]);
+        count++;
+      }
+    }
+  }
+  return count;
+}
 int complt_find_arguments(char *matches[], const char *line, int max) {
   char dir[1024];
   char prefix[1024];
@@ -776,9 +809,14 @@ void complt_replace_line(struct comp_token *token, char *match) {
 }
 
 void complt_print_matches(char *matches[], int total) {
-  printf("\n");
+  printf("\r\n");
+  int column_width = 15;
+
   for (int i = 0; i < total; i++) {
-    printf("%s\t", matches[i]);
+    printf("%-*s\t", column_width, matches[i]);
+    if ((i + 1) % 9 == 0) {
+      printf("\r\n");
+    }
   }
   printf("\n");
 }
