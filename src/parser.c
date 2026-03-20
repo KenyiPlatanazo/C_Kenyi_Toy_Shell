@@ -1,4 +1,5 @@
 #include "parser.h"
+#include <stddef.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -6,7 +7,7 @@ void handle_type(struct t_command *command);
 void check_type(const char *command);
 void handle_echo(struct t_command *command);
 void handle_exec(struct t_command *command);
-void handle_pwd(struct t_command *command);
+void handle_pwd(void);
 void handle_cd(struct t_command *command);
 
 void process_command(char *command) {
@@ -232,7 +233,7 @@ void exec_builtin(enum Command type, struct t_command *command) {
     handle_type(command);
     break;
   case SHELL_PWD:
-    handle_pwd(command);
+    handle_pwd();
     break;
   case SHELL_ECHO:
     handle_echo(command);
@@ -325,7 +326,7 @@ void parse_tokens(struct t_pipeline *pipeline, int argc,
 bool is_token_pure_digits(struct raw_token *token) {
   if (!token || !token->value || token->value[0] == '\0')
     return false;
-  for (int i = 0; i < strlen(token->value); i++) {
+  for (int i = 0; (size_t)i < strlen(token->value); i++) {
     char c = token->value[i];
     if (c < '0' || c > '9')
       return false;

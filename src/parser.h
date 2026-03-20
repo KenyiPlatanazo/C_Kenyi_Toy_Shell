@@ -1,5 +1,8 @@
 #ifndef PARSER
 #define PARSER
+
+#define _POSIX_C_SOURCE 200809L
+
 #include <asm-generic/errno-base.h>
 #include <assert.h>
 #include <dirent.h>

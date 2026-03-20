@@ -1,3 +1,3 @@
 #!/bin/bash
 
-clang parser.c main.c -o main -Wall -Werror -Wimplicit-fallthrough
+clang parser.c exec.c input.c -o main -Wall -Werror -Wextra -pedantic -std=c23

@@ -1,48 +1,4 @@
-#include "parser.h"
-#include <asm-generic/errno-base.h>
-#include <assert.h>
-#include <dirent.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <linux/limits.h>
-#include <pwd.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
-bool does_exec_exists(const char *command, const char *dir);
-
-void handle_type(struct t_command *command);
-void check_type(const char *command);
-void handle_echo(struct t_command *command);
-void handle_exec(struct t_command *command);
-void handle_pwd(struct t_command *command);
-void handle_cd(struct t_command *command);
-
-void handle_redirections(struct t_command *command);
-
-void create_file(char *name);
-
-int main(int argc, char *argv[]) {
-  while (1) {
-    // Flush after every printf
-    setbuf(stdout, NULL);
-    printf("$ ");
-
-    char command[1024];
-    fgets(command, sizeof(command), stdin);
-    // Deletes the \n char present in fgets (since the input is recieved when
-    // the user presses \n, it needs to be deleted)
-    command[strcspn(command, "\n")] = '\0';
-    process_command(command);
-  }
-  return 0;
-}
+#include "exec.h"
 
 void handle_type(struct t_command *command) {
   if (command->argc < 2)
@@ -113,7 +69,7 @@ void handle_exec(struct t_command *command) {
   }
 }
 
-void handle_pwd(struct t_command *command) {
+void handle_pwd(void) {
   // We keep the argc and argv to add flag detection later
   char cwd[PATH_MAX];
   if (getcwd(cwd, sizeof(cwd)) != NULL) {
