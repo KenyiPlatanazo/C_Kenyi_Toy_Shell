@@ -55,6 +55,8 @@ struct complt_state {
   int index;
   char last_prefix[TOKEN_BUFFSIZE];
   bool active;
+  int token_start;
+  int token_end;
 };
 
 struct history {
@@ -320,6 +322,7 @@ void terminal_process_keypress(void) {
   case CTRL_KEY('l'):
     break;
   default:
+    CS.active = false;
     terminal_insert_char(c);
     break;
   }
@@ -441,7 +444,13 @@ void complt_cycle(struct comp_token *token) {
   if (CS.count == 0)
     return;
   CS.index = (CS.index + 1) % CS.count;
-  complt_replace_line(token, CS.matches[CS.index]);
+
+  struct comp_token fake = *token;
+  fake.token_start = CS.token_start;
+  fake.token_end = CS.token_end;
+
+  complt_replace_line(&fake, CS.matches[CS.index]);
+  CS.token_end = CS.token_start + strlen(CS.matches[CS.index]) + 1;
 }
 
 void complt_read_token(const char *line, int *i, struct comp_token *token) {
@@ -573,7 +582,11 @@ void split_path(const char *input, char *dir, char *prefix) {
 }
 
 void complt_find_matches(struct comp_token *token) {
-  if (CS.active && strcmp(token->value, CS.last_prefix) == 0) {
+  if (!CS.active) {
+    CS.token_start = token->token_start;
+    CS.token_end = token->token_end;
+  }
+  if (CS.active) {
     complt_cycle(token);
     return;
   }
@@ -587,10 +600,8 @@ void complt_find_matches(struct comp_token *token) {
     if (total == 0)
       return;
   } else {
-    // DISABLE THE MAKE THE HACK WORK
-    //  total +=
-    //      complt_find_builtins(matches, total, token->value, MAX_MATCHES -
-    //      total);
+    total +=
+        complt_find_builtins(matches, total, token->value, MAX_MATCHES - total);
     char *path = getenv("PATH");
     if (path == NULL) {
       return;
@@ -600,23 +611,8 @@ void complt_find_matches(struct comp_token *token) {
 
     char *dir = strtok_r(path_copy, ":", &inner_saveptr);
     while (dir && total < MAX_MATCHES) {
-      // REAL IMPLEMENTATION
-      // total += complt_find_commands(matches, total, token->value, dir,
-      //                              MAX_MATCHES - total);
-
-      // The following 'added' variable and if statement are part of the HACK to
-      // pass the first test THIS IS PART OF THE HACK
-
-      int added = complt_find_commands(matches, total, token->value, dir,
-                                       MAX_MATCHES - total);
-
-      total += added;
-      if (total == 1 &&
-          strncmp("exit", token->value, strlen(token->value)) == 0) {
-        break;
-      }
-
-      // END HACK
+      total += complt_find_commands(matches, total, token->value, dir,
+                                    MAX_MATCHES - total);
       dir = strtok_r(NULL, ":", &inner_saveptr);
     }
     if (total == 0) {
@@ -631,7 +627,7 @@ void complt_find_matches(struct comp_token *token) {
     CS.matches[i] = matches[i];
   CS.count = total;
   CS.index = 0;
-  CS.active = true;
+  CS.active = (total > 0);
   strcpy(CS.last_prefix, token->value);
 
   if (total == 1) {
@@ -679,20 +675,6 @@ bool complt_already_exists(char *matches[], int count, const char *name) {
 
 int complt_find_commands(char *matches[], int total, const char *prefix,
                          const char *dir, int max) {
-
-  // THIS IF STATEMENT ONLY EXISTS TO PASS THE CODECRAFTERS TEST
-  // I WENT AHEAD OF MYSELF AND IMPLEMENTED THE ENTIRE LOGIC BEFORE TIME
-  // SO WHEN "EXI" IS AN INPUT INSTEAD OF AUTOCOMPLETING TO EXIT
-  // IT INSTEAD PRINTS ALL THE MATCHES
-  // THIS IF STATEMENT IS A HACK!!!!!!!!!!!!!!!!
-
-  if (strncmp("exit", prefix, strlen(prefix)) == 0) {
-    matches[0] = strdup("exit");
-    return 1;
-  }
-
-  // END HACK
-
   DIR *d = opendir(dir);
   if (!d)
     return 0;
