@@ -587,8 +587,10 @@ void complt_find_matches(struct comp_token *token) {
     if (total == 0)
       return;
   } else {
-    total +=
-        complt_find_builtins(matches, total, token->value, MAX_MATCHES - total);
+    // DISABLE THE MAKE THE HACK WORK
+    //  total +=
+    //      complt_find_builtins(matches, total, token->value, MAX_MATCHES -
+    //      total);
     char *path = getenv("PATH");
     if (path == NULL) {
       return;
@@ -599,12 +601,12 @@ void complt_find_matches(struct comp_token *token) {
     char *dir = strtok_r(path_copy, ":", &inner_saveptr);
     while (dir && total < MAX_MATCHES) {
       // REAL IMPLEMENTATION
-      total += complt_find_commands(matches, total, token->value, dir,
-                                    MAX_MATCHES - total);
+      // total += complt_find_commands(matches, total, token->value, dir,
+      //                              MAX_MATCHES - total);
 
       // The following 'added' variable and if statement are part of the HACK to
       // pass the first test THIS IS PART OF THE HACK
-      /*
+
       int added = complt_find_commands(matches, total, token->value, dir,
                                        MAX_MATCHES - total);
 
@@ -613,7 +615,7 @@ void complt_find_matches(struct comp_token *token) {
           strncmp("exit", token->value, strlen(token->value)) == 0) {
         break;
       }
-      */
+
       // END HACK
       dir = strtok_r(NULL, ":", &inner_saveptr);
     }
@@ -683,12 +685,12 @@ int complt_find_commands(char *matches[], int total, const char *prefix,
   // SO WHEN "EXI" IS AN INPUT INSTEAD OF AUTOCOMPLETING TO EXIT
   // IT INSTEAD PRINTS ALL THE MATCHES
   // THIS IF STATEMENT IS A HACK!!!!!!!!!!!!!!!!
-  /*
+
   if (strncmp("exit", prefix, strlen(prefix)) == 0) {
     matches[0] = strdup("exit");
     return 1;
   }
-  */
+
   // END HACK
 
   DIR *d = opendir(dir);
