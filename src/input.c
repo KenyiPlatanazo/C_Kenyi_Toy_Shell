@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #define _POSIX_C_SOURCE 200809L
 
 #include "exec.h"
@@ -78,6 +79,7 @@ struct terminal_config {
 
 struct terminal_config T;
 struct complt_state CS = {0};
+bool executing = false;
 
 void disable_raw_mode(void);
 void enable_raw_mode(void);
@@ -121,7 +123,7 @@ int complt_find_longest_common_prefix(char *matches[], int count);
 int main() {
   enable_raw_mode();
   init_terminal();
-  while (1) {
+  while (!executing) {
     terminal_refresh_screen();
     terminal_process_keypress();
   }
@@ -336,14 +338,16 @@ void terminal_move_cursor(int key) {
 void process_line(void) {
   if (T.size == 0)
     return;
+  executing = true;
   T.line[T.size] = '\0';
   write(STDOUT_FILENO, "\r\n", 2);
   disable_raw_mode();
   process_command(T.line);
-  enable_raw_mode();
   history_save_entry(T.line);
   T.hist.index = T.hist.length;
   clear_line_buff();
+  executing = false;
+  enable_raw_mode();
 }
 
 void terminal_search_history(int c) {
