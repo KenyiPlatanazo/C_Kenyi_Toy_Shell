@@ -338,7 +338,9 @@ void process_line(void) {
     return;
   T.line[T.size] = '\0';
   write(STDOUT_FILENO, "\r\n", 2);
+  disable_raw_mode();
   process_command(T.line);
+  enable_raw_mode();
   history_save_entry(T.line);
   T.hist.index = T.hist.length;
   clear_line_buff();

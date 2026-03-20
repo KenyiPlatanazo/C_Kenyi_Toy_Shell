@@ -124,7 +124,7 @@ void handle_redirections(struct t_command *command) {
     }
 
     if (file_fd < 0) {
-      perror("Open/create file");
+      // perror("Open/create file");
       return;
     }
 
